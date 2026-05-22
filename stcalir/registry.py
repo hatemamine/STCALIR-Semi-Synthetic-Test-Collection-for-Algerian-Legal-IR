@@ -47,11 +47,35 @@ MODEL_REGISTRY: dict[str, dict] = {
     },
 }
 
-BENCHMARK_LOADERS: dict[str, dict] = {
-    "mrtydi_arabic":  {"hf_dataset": "castorini/mr-tydi", "lang": "arabic",  "split": "test"},
-    "mrtydi_english": {"hf_dataset": "castorini/mr-tydi", "lang": "english", "split": "test"},
-    "mmarco_arabic":  {"hf_dataset": "unicamp-dl/mmarco", "lang": "arabic",  "split": "train"},
-    "msmarco":        {"hf_dataset": "ms_marco",          "config": "v1.1",   "split": "validation"},
+# ── ir_datasets IDs ────────────────────────────────────────────────────────────
+# corpus_id   : used by docs_iter() to build the full passage lookup
+# queries_*   : used by queries_iter() per split
+# qrels_*     : same dataset id also has qrels_iter()
+IR_DATASETS_MAP: dict[str, dict] = {
+    "mrtydi_arabic": {
+        "corpus_id":      "mr-tydi/ar",
+        "queries_test":   "mr-tydi/ar/test",
+        "queries_dev":    "mr-tydi/ar/dev",
+        "default_split":  "test",
+    },
+    "mrtydi_english": {
+        "corpus_id":      "mr-tydi/en",
+        "queries_test":   "mr-tydi/en/test",
+        "queries_dev":    "mr-tydi/en/dev",
+        "default_split":  "test",
+    },
+    "mmarco_arabic": {
+        "corpus_id":      "mmarco/v2/ar",
+        "queries_dev":    "mmarco/v2/ar/dev/small",
+        "queries_train":  "mmarco/v2/ar/train",
+        "default_split":  "dev",
+    },
+    "msmarco": {
+        "corpus_id":      "msmarco-passage",
+        "queries_dev":    "msmarco-passage/dev/small",
+        "queries_train":  "msmarco-passage/train",
+        "default_split":  "dev",
+    },
 }
 
 PREBUILT_HF_REPO = "hatemestinbejaia/ExperimentDATA_knowledge_distillation_vs_fine_tuning"
@@ -63,7 +87,7 @@ def get_models(language: str) -> dict:
     return MODEL_REGISTRY[language]
 
 
-def get_benchmark_loader(dataset: str) -> dict:
-    if dataset not in BENCHMARK_LOADERS:
+def get_ir_datasets_ids(dataset: str) -> dict:
+    if dataset not in IR_DATASETS_MAP:
         return {}
-    return BENCHMARK_LOADERS[dataset]
+    return IR_DATASETS_MAP[dataset]

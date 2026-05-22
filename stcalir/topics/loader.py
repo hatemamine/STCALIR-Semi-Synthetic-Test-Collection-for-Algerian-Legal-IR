@@ -2,50 +2,96 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Optional
 
-from stcalir.registry import BENCHMARK_LOADERS
-from stcalir.utils import get_logger, load_qrels
+from stcalir.registry import IR_DATASETS_MAP
+from stcalir.utils import get_logger
 
 logger = get_logger(__name__)
 
 Topic = dict   # {"qid": str, "text": str}
+Qrels = dict[str, dict[str, int]]
 
 
-def load_topics(dataset: str, split: str = "test") -> list[Topic]:
-    """Load topics (queries) for a benchmark dataset."""
-    loader_cfg = BENCHMARK_LOADERS.get(dataset)
+def load_topics(dataset: str, split: str | None = None) -> list[Topic]:
+    """
+    Load queries for a benchmark dataset using ir_datasets.
 
-    if loader_cfg is None:
-        raise ValueError(f"Unknown dataset '{dataset}'. Known: {list(BENCHMARK_LOADERS)}")
+    dataset : one of mrtydi_arabic / mrtydi_english / mmarco_arabic / msmarco
+    split   : "test" | "dev" | "train" (defaults to dataset's default_split)
+    """
+    import ir_datasets
 
-    hf_name = loader_cfg["hf_dataset"]
-    lang     = loader_cfg.get("lang")
-    config   = loader_cfg.get("config")
-    _split   = loader_cfg.get("split", split)
+    ids = IR_DATASETS_MAP.get(dataset)
+    if ids is None:
+        raise ValueError(
+            f"Unknown dataset '{dataset}'. Known: {list(IR_DATASETS_MAP)}\n"
+            "For a custom corpus use mode='domain'."
+        )
 
-    from datasets import load_dataset
+    _split = split or ids["default_split"]
+    ir_id  = ids.get(f"queries_{_split}")
+    if ir_id is None:
+        available = [k.replace("queries_", "") for k in ids if k.startswith("queries_")]
+        raise ValueError(
+            f"Split '{_split}' not available for '{dataset}'. Available: {available}"
+        )
 
-    logger.info(f"Loading topics for '{dataset}' from HuggingFace ({hf_name}) ...")
-
-    if hf_name == "castorini/mr-tydi":
-        ds = load_dataset(hf_name, lang, split=_split)
-        topics = [{"qid": str(row["query_id"]), "text": str(row["query"])} for row in ds]
-
-    elif hf_name == "unicamp-dl/mmarco":
-        # mmarco queries
-        ds = load_dataset("unicamp-dl/mmarco", f"queries-{lang}", split="train")
-        topics = [{"qid": str(row["id"]), "text": str(row["query"])} for row in ds]
-
-    elif hf_name == "ms_marco":
-        ds = load_dataset("ms_marco", config, split=_split)
-        topics = [{"qid": str(row["query_id"]), "text": str(row["query"])} for row in ds]
-
-    else:
-        raise NotImplementedError(f"No loader implemented for {hf_name}")
-
-    logger.info(f"Loaded {len(topics):,} topics for '{dataset}'")
+    logger.info(f"Loading topics via ir_datasets: {ir_id}")
+    ds = ir_datasets.load(ir_id)
+    topics = [{"qid": str(q.query_id), "text": str(q.text)} for q in ds.queries_iter()]
+    logger.info(f"Loaded {len(topics):,} topics ({dataset} / {_split})")
     return topics
+
+
+def load_reference_qrels(dataset: str, split: str | None = None) -> Qrels:
+    """
+    Load human-annotated qrels for a benchmark dataset using ir_datasets.
+    Returns {qid: {pid: relevance}} — only binary (1) labels kept.
+    """
+    import ir_datasets
+
+    ids = IR_DATASETS_MAP.get(dataset)
+    if ids is None:
+        raise ValueError(f"Unknown dataset '{dataset}'. Known: {list(IR_DATASETS_MAP)}")
+
+    _split = split or ids["default_split"]
+    ir_id  = ids.get(f"queries_{_split}")   # qrels live on the same split id
+    if ir_id is None:
+        raise ValueError(f"Split '{_split}' not available for '{dataset}'")
+
+    logger.info(f"Loading reference qrels via ir_datasets: {ir_id}")
+    ds = ir_datasets.load(ir_id)
+    qrels: Qrels = {}
+    for qrel in ds.qrels_iter():
+        if qrel.relevance > 0:
+            qrels.setdefault(str(qrel.query_id), {})[str(qrel.doc_id)] = int(qrel.relevance)
+    logger.info(f"Loaded qrels for {len(qrels):,} queries ({dataset} / {_split})")
+    return qrels
+
+
+def load_corpus_ir(dataset: str) -> list[dict]:
+    """
+    Load the full passage corpus for a benchmark dataset using ir_datasets.
+    Returns [{"pid": str, "text": str, "doc_id": str}, ...]
+    """
+    import ir_datasets
+
+    ids = IR_DATASETS_MAP.get(dataset)
+    if ids is None:
+        raise ValueError(f"Unknown dataset '{dataset}'. Known: {list(IR_DATASETS_MAP)}")
+
+    ir_id = ids["corpus_id"]
+    logger.info(f"Loading corpus via ir_datasets: {ir_id}")
+    ds = ir_datasets.load(ir_id)
+
+    passages = []
+    for doc in ds.docs_iter():
+        text = getattr(doc, "text", None) or getattr(doc, "body", "")
+        pid  = str(doc.doc_id)
+        passages.append({"pid": pid, "text": str(text), "doc_id": pid})
+
+    logger.info(f"Loaded {len(passages):,} passages for '{dataset}'")
+    return passages
 
 
 def load_topics_from_file(path: str | Path) -> list[Topic]:
@@ -57,30 +103,9 @@ def load_topics_from_file(path: str | Path) -> list[Topic]:
             line = line.strip()
             if not line:
                 continue
-            rec = json.loads(line)
+            rec  = json.loads(line)
             qid  = str(rec.get("qid", rec.get("query_id", rec.get("id", ""))))
             text = str(rec.get("text", rec.get("query", "")))
             topics.append({"qid": qid, "text": text})
     logger.info(f"Loaded {len(topics):,} topics from {path}")
     return topics
-
-
-def load_reference_qrels(dataset: str, split: str = "test") -> dict[str, dict[str, int]]:
-    """Load human-annotated qrels for a benchmark dataset."""
-    from datasets import load_dataset
-    loader_cfg = BENCHMARK_LOADERS.get(dataset, {})
-    hf_name = loader_cfg.get("hf_dataset", "")
-    lang    = loader_cfg.get("lang")
-    _split  = loader_cfg.get("split", split)
-
-    if hf_name == "castorini/mr-tydi":
-        ds = load_dataset(hf_name, lang, split=_split)
-        qrels: dict[str, dict[str, int]] = {}
-        for row in ds:
-            qid = str(row["query_id"])
-            for pid in row.get("positive_passages", []):
-                qrels.setdefault(qid, {})[str(pid["id"])] = 1
-        logger.info(f"Loaded {len(qrels)} qrels for '{dataset}'")
-        return qrels
-
-    raise NotImplementedError(f"Reference qrels not implemented for {dataset}")
