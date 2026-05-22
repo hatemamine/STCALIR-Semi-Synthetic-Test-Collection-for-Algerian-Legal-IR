@@ -29,6 +29,7 @@ dependencies = [
     "torch>=2.2",
     "nltk>=3.8",
     "ipywidgets>=8.0",
+    "ir_datasets>=0.5",
 ]
 
 [project.optional-dependencies]
