@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 from scipy.stats import kendalltau, spearmanr
 
-from stcalir.utils import get_logger, load_qrels, load_run
+from stcir.utils import get_logger, load_qrels, load_run
 
 logger = get_logger(__name__)
 
@@ -24,7 +24,7 @@ def compute_system_correlation(
 
     Returns a DataFrame: index=metric, columns=[kendall_tau, spearman_rho].
     """
-    from stcalir.evaluation.metrics import evaluate_multiple_runs
+    from stcir.evaluation.metrics import evaluate_multiple_runs
 
     if metrics is None:
         metrics = ["MRR@10", "nDCG@10", "Recall@10"]
@@ -99,7 +99,7 @@ def plot_system_scatter(
 ):
     """Scatter plot: human metric score (x) vs synthetic metric score (y) per system."""
     import matplotlib.pyplot as plt
-    from stcalir.evaluation.metrics import evaluate_multiple_runs
+    from stcir.evaluation.metrics import evaluate_multiple_runs
 
     h = evaluate_multiple_runs(human_qrels,     runs, [metric])[metric]
     s = evaluate_multiple_runs(synthetic_qrels, runs, [metric])[metric]

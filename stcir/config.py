@@ -7,7 +7,7 @@ from typing import Optional
 
 import yaml
 
-from stcalir.registry import MODEL_REGISTRY, PREBUILT_HF_REPO
+from stcir.registry import MODEL_REGISTRY, PREBUILT_HF_REPO
 
 _VALID_LANGUAGES   = ("arabic", "english")
 _VALID_MODES       = ("standard", "domain")
@@ -17,7 +17,7 @@ _VALID_TOPIC_MODES = ("human", "llm")
 
 
 @dataclass
-class STCALIRConfig:
+class STCIRConfig:
     # ── Identity ─────────────────────────────────────────────────────────────
     language: str = "arabic"
     dataset:  str = "mrtydi_arabic"
@@ -113,7 +113,7 @@ class STCALIRConfig:
     # ── YAML serialisation ───────────────────────────────────────────────────
 
     @classmethod
-    def from_yaml(cls, path: str) -> "STCALIRConfig":
+    def from_yaml(cls, path: str) -> "STCIRConfig":
         with open(path, encoding="utf-8") as f:
             data = yaml.safe_load(f)
         return cls(**data)

@@ -3,7 +3,7 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "stcalir"
+name = "stcir"
 version = "0.1.0"
 description = "Semi-Synthetic Test Collection framework for Information Retrieval"
 requires-python = ">=3.10"
@@ -38,4 +38,4 @@ dev = ["pytest>=8.0", "black>=24.0", "ruff>=0.4"]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["stcalir*"]
+include = ["stcir*"]

@@ -5,7 +5,7 @@ from typing import Optional
 
 import pandas as pd
 
-from stcalir.utils import get_logger, save_run, save_qrels
+from stcir.utils import get_logger, save_run, save_qrels
 
 logger = get_logger(__name__)
 

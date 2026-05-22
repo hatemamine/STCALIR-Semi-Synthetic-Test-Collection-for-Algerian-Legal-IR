@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import numpy as np
 
-from stcalir.indexing.encoder import BiEncoder
-from stcalir.indexing.faiss_index import FaissIndex
-from stcalir.utils import get_logger
+from stcir.indexing.encoder import BiEncoder
+from stcir.indexing.faiss_index import FaissIndex
+from stcir.utils import get_logger
 
 logger = get_logger(__name__)
 

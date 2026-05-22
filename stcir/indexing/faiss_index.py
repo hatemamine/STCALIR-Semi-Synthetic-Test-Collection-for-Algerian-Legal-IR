@@ -5,7 +5,7 @@ from pathlib import Path
 import faiss
 import numpy as np
 
-from stcalir.utils import get_logger
+from stcir.utils import get_logger
 
 logger = get_logger(__name__)
 

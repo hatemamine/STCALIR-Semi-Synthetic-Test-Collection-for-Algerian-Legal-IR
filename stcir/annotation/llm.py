@@ -5,7 +5,7 @@ from typing import Optional
 
 from tqdm.auto import tqdm
 
-from stcalir.utils import get_logger
+from stcir.utils import get_logger
 
 logger = get_logger(__name__)
 

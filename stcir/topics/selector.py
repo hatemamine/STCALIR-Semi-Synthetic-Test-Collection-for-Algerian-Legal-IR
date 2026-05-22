@@ -3,7 +3,7 @@ from __future__ import annotations
 import random
 from pathlib import Path
 
-from stcalir.utils import get_logger, save_jsonl
+from stcir.utils import get_logger, save_jsonl
 
 logger = get_logger(__name__)
 

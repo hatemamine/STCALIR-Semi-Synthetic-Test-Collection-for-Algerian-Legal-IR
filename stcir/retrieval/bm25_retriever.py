@@ -3,8 +3,8 @@ from __future__ import annotations
 import numpy as np
 from tqdm.auto import tqdm
 
-from stcalir.indexing.bm25 import BM25Index
-from stcalir.utils import get_logger
+from stcir.indexing.bm25 import BM25Index
+from stcir.utils import get_logger
 
 logger = get_logger(__name__)
 

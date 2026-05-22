@@ -7,7 +7,7 @@ import numpy as np
 from rank_bm25 import BM25Okapi
 from tqdm.auto import tqdm
 
-from stcalir.utils import get_logger, save_pickle, load_pickle
+from stcir.utils import get_logger, save_pickle, load_pickle
 
 logger = get_logger(__name__)
 

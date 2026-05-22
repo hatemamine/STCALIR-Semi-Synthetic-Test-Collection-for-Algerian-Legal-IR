@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from stcalir.retrieval.rrf import rrf_fuse
-from stcalir.utils import get_logger
+from stcir.retrieval.rrf import rrf_fuse
+from stcir.utils import get_logger
 
 logger = get_logger(__name__)
 

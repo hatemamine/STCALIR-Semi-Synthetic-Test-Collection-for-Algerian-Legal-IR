@@ -5,7 +5,7 @@ from pathlib import Path
 
 from flask import Flask, render_template_string, request, redirect, url_for
 
-from stcalir.utils import get_logger
+from stcir.utils import get_logger
 
 logger = get_logger(__name__)
 

@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from stcalir.registry import IR_DATASETS_MAP
-from stcalir.utils import get_logger
+from stcir.registry import IR_DATASETS_MAP
+from stcir.utils import get_logger
 
 logger = get_logger(__name__)
 

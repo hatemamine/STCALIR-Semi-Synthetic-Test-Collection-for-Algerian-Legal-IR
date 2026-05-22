@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-from stcalir.utils import get_logger, load_run
+from stcir.utils import get_logger, load_run
 
 logger = get_logger(__name__)
 
