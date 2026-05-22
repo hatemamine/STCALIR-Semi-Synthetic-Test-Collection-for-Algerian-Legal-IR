@@ -80,6 +80,23 @@ IR_DATASETS_MAP: dict[str, dict] = {
 
 PREBUILT_HF_REPO = "hatemestinbejaia/ExperimentDATA_knowledge_distillation_vs_fine_tuning"
 
+# ── Primary HuggingFace dataset repos (default loader; ir_datasets is fallback) ──
+# Each entry maps to a dict with the HF repo id and optional split name.
+# For topics/qrels: the split that contains queries + qrels.
+# For corpus: the split that contains the passages (usually "corpus" or "train").
+HF_PRIMARY_MAP: dict[str, dict] = {
+    "mrtydi_arabic": {
+        "hf_repo":          "hatemestinbejaia/mr-tydi-ar-dev",
+        "queries_split":    "train",    # HF datasets typically use 'train' as default split
+        "corpus_split":     "train",
+    },
+    "mmarco_arabic": {
+        "hf_repo":          "hatemestinbejaia/mmarco-subset",
+        "queries_split":    "train",
+        "corpus_split":     "train",
+    },
+}
+
 
 def get_models(language: str) -> dict:
     if language not in MODEL_REGISTRY:
@@ -91,3 +108,8 @@ def get_ir_datasets_ids(dataset: str) -> dict:
     if dataset not in IR_DATASETS_MAP:
         return {}
     return IR_DATASETS_MAP[dataset]
+
+
+def get_hf_primary(dataset: str) -> dict | None:
+    """Return HF_PRIMARY_MAP entry if one exists for the given dataset key."""
+    return HF_PRIMARY_MAP.get(dataset)
