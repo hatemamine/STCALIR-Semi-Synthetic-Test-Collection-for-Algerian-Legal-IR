@@ -13,9 +13,10 @@ Topic = dict   # {"qid": str, "text": str}
 Qrels = dict[str, dict[str, int]]
 
 # ── column-name candidates (tried in order) ───────────────────────────────────
-_QID_COLS   = ("query_id", "qid", "id", "question_id")
+# Listed from most specific / canonical to most generic so the first match wins.
+_QID_COLS   = ("qid", "query_id", "id", "question_id")
 _QTEXT_COLS = ("query", "text", "question", "query_text")
-_PID_COLS   = ("doc_id", "pid", "passage_id", "docid", "id")
+_PID_COLS   = ("pid", "doc_id", "passage_id", "docid", "id")
 _PTEXT_COLS = ("passage", "text", "body", "content", "answer")
 _REL_COLS   = ("relevance", "label", "score", "rel")
 
@@ -30,7 +31,7 @@ def _pick(row: dict, candidates: tuple[str, ...], default: str = "") -> str:
 # ── HuggingFace primary loader ─────────────────────────────────────────────────
 
 def _hf_load_split(hf_repo: str, split: str) -> Any:
-    """Load a HuggingFace dataset split, trying the given split first then 'train'."""
+    """Load a HuggingFace dataset split, falling back to 'train' if the split is missing."""
     from datasets import load_dataset
     try:
         return load_dataset(hf_repo, split=split, trust_remote_code=False)
@@ -59,14 +60,20 @@ def _hf_topics(hf_repo: str, split: str) -> list[Topic]:
     return topics
 
 
-def _hf_qrels(hf_repo: str, split: str) -> Qrels:
-    logger.info(f"Loading qrels from HuggingFace: {hf_repo} (split={split})")
-    ds = _hf_load_split(hf_repo, split)
+def _hf_qrels(hf_repo: str, qrels_split: str) -> Qrels:
+    """
+    Load qrels from a dedicated HuggingFace split.
+
+    For mmarco-subset this is the 'qrels' split with columns: qid, pid, relevance.
+    For other repos the split is usually the same as the queries split.
+    """
+    logger.info(f"Loading qrels from HuggingFace: {hf_repo} (split={qrels_split})")
+    ds = _hf_load_split(hf_repo, qrels_split)
     qrels: Qrels = {}
     sample = ds[0] if len(ds) > 0 else {}
     for row in ds:
-        qid = _pick(row, _QID_COLS)
-        pid = _pick(row, _PID_COLS)
+        qid     = _pick(row, _QID_COLS)
+        pid     = _pick(row, _PID_COLS)
         rel_raw = _pick(row, _REL_COLS, default="0")
         try:
             rel = int(float(rel_raw))
@@ -75,9 +82,9 @@ def _hf_qrels(hf_repo: str, split: str) -> Qrels:
         if qid and pid and rel > 0:
             qrels.setdefault(qid, {})[pid] = rel
     if not qrels:
-        # If no relevance column found, treat every (qid, pid) pair as relevant=1
         logger.warning(
-            f"No relevance column found in {hf_repo}; defaulting all pairs to rel=1. "
+            f"No positive relevance judgments found in {hf_repo}/{qrels_split}; "
+            f"defaulting all (qid, pid) pairs to rel=1. "
             f"Available columns: {list(sample.keys())}"
         )
         for row in ds:
@@ -177,7 +184,10 @@ def load_reference_qrels(dataset: str, split: str | None = None) -> Qrels:
 
     if hf_cfg:
         try:
-            return _hf_qrels(hf_cfg["hf_repo"], hf_cfg.get("queries_split", _split))
+            # Use dedicated qrels_split when present (e.g. mmarco-subset has a 'qrels' split);
+            # fall back to queries_split if not specified.
+            qs = hf_cfg.get("qrels_split") or hf_cfg.get("queries_split", _split)
+            return _hf_qrels(hf_cfg["hf_repo"], qs)
         except Exception as e:
             logger.warning(f"HF primary qrels load failed ({e}); falling back to ir_datasets")
 

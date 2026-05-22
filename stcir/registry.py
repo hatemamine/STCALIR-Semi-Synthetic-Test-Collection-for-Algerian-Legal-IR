@@ -81,19 +81,30 @@ IR_DATASETS_MAP: dict[str, dict] = {
 PREBUILT_HF_REPO = "hatemestinbejaia/ExperimentDATA_knowledge_distillation_vs_fine_tuning"
 
 # ── Primary HuggingFace dataset repos (default loader; ir_datasets is fallback) ──
-# Each entry maps to a dict with the HF repo id and optional split name.
-# For topics/qrels: the split that contains queries + qrels.
-# For corpus: the split that contains the passages (usually "corpus" or "train").
+# Keys per entry:
+#   hf_repo        : HuggingFace dataset repo ID
+#   queries_split  : split name that contains queries
+#   corpus_split   : split name that contains passages
+#   qrels_split    : split name that contains qrels (omit → same as queries_split)
+#
+# mmarco-subset DatasetDict structure:
+#   arabic_collection  → pid (int), passage (str)
+#   english_collection → pid (int), passage (str)
+#   arabic_queries     → qid (int), query (str)
+#   english_queries    → qid (int), query (str)
+#   qrels              → qid (int), pid (int), relevance (int)
 HF_PRIMARY_MAP: dict[str, dict] = {
     "mrtydi_arabic": {
-        "hf_repo":          "hatemestinbejaia/mr-tydi-ar-dev",
-        "queries_split":    "train",    # HF datasets typically use 'train' as default split
-        "corpus_split":     "train",
+        "hf_repo":       "hatemestinbejaia/mr-tydi-ar-dev",
+        "queries_split": "train",   # auto-detected fallback if split missing
+        "corpus_split":  "train",
+        # qrels_split omitted → same as queries_split
     },
     "mmarco_arabic": {
-        "hf_repo":          "hatemestinbejaia/mmarco-subset",
-        "queries_split":    "train",
-        "corpus_split":     "train",
+        "hf_repo":       "hatemestinbejaia/mmarco-subset",
+        "queries_split": "arabic_queries",
+        "corpus_split":  "arabic_collection",
+        "qrels_split":   "qrels",
     },
 }
 
