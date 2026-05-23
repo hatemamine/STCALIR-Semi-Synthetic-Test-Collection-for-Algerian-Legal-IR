@@ -87,24 +87,23 @@ PREBUILT_HF_REPO = "hatemestinbejaia/ExperimentDATA_knowledge_distillation_vs_fi
 #   corpus_split   : split name that contains passages
 #   qrels_split    : split name that contains qrels (omit → same as queries_split)
 #
-# mmarco-subset DatasetDict structure:
-#   arabic_collection  → pid (int), passage (str)
-#   english_collection → pid (int), passage (str)
-#   arabic_queries     → qid (int), query (str)
-#   english_queries    → qid (int), query (str)
-#   qrels              → qid (int), pid (int), relevance (int)
+# Column names are auto-detected; common variants tried in order:
+#   qid / query_id / id,  query / text,  pid / doc_id,  passage / text,  relevance / label
 HF_PRIMARY_MAP: dict[str, dict] = {
     "mrtydi_arabic": {
         "hf_repo":       "hatemestinbejaia/mr-tydi-ar-dev",
-        "queries_split": "train",   # auto-detected fallback if split missing
+        "queries_split": "train",
         "corpus_split":  "train",
-        # qrels_split omitted → same as queries_split
     },
     "mmarco_arabic": {
-        "hf_repo":       "hatemestinbejaia/mmarco-subset",
-        "queries_split": "arabic_queries",
-        "corpus_split":  "arabic_collection",
-        "qrels_split":   "qrels",
+        "hf_repo":       "hatemestinbejaia/mmarco-arabic-dev",
+        "queries_split": "train",
+        "corpus_split":  "train",
+    },
+    "msmarco": {
+        "hf_repo":       "hatemestinbejaia/mmarco-english-dev",
+        "queries_split": "train",
+        "corpus_split":  "train",
     },
 }
 
