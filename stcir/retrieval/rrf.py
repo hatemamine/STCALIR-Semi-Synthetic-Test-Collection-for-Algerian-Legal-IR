@@ -96,11 +96,11 @@ class Stage1Pool:
 
         # list files in the subfolder
         all_files = list(list_repo_files(hf_repo, repo_type="dataset"))
-        folder_files = [f for f in all_files if f.startswith(hf_folder + "/") and f.endswith(".txt")]
+        folder_files = [f for f in all_files if f.startswith(hf_folder + "/") and f.endswith(".tsv")]
 
         if not folder_files:
             raise FileNotFoundError(
-                f"No .txt files found in {hf_folder}/ of {hf_repo}. "
+                f"No .tsv files found in {hf_folder}/ of {hf_repo}. "
                 f"Available files: {all_files[:10]}"
             )
 
