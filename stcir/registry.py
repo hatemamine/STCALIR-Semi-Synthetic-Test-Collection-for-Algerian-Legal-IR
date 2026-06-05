@@ -83,7 +83,7 @@ PREBUILT_HF_REPO = "hatemestinbejaia/STCIR_Synthetic-Test-Collection-IR"
 # Maps stage1_source / stage2_source config values → HF folder names inside PREBUILT_HF_REPO
 PREBUILT_FOLDER_MAP: dict[str, dict[str, str]] = {
     "stage1": {
-        "prebuilt_mrtydi": "FirstStage_mrTydi",
+        "prebuilt_mrtydi": "MrTydi_first-stage",
         "prebuilt_mmarco": "FirstStage_mmarco",
     },
     "stage2": {
