@@ -1,0 +1,10 @@
+*.egg-info/
+__pycache__/
+*.pyc
+.cache/
+outputs/
+data/
+*.npy
+*.faiss
+*.pkl
+.ipynb_checkpoints/

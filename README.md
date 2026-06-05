@@ -1,9 +1,9 @@
-# STCALIR-Semi-Synthetic-Test-Collection-for-Algerian-Legal-Information-Retrieval
-STCALIR: Semi-Synthetic Test Collection for Algerian Legal Information Retrieval
-# STCALIR: Semi-Synthetic Test Collection for Algerian Legal Information Retrieval
+# STCIR-Semi-Synthetic-Test-Collection-for-Algerian-Legal-Information-Retrieval
+STCIR: Semi-Synthetic Test Collection for Algerian Legal Information Retrieval
+# STCIR: Semi-Synthetic Test Collection for Algerian Legal Information Retrieval
 
 ## Overview
-This repository provides the resources and code supporting the STCALIR framework, a **semi-synthetic test collection pipeline** designed for Algerian Arabic legal information retrieval. STCALIR combines human topic generation, multi-system bi-encoder retrieval, RRF pooling, and cross-encoder reranking to produce high-quality semi-synthetic relevance judgments while minimizing manual annotation effort.
+This repository provides the resources and code supporting the STCIR framework, a **semi-synthetic test collection pipeline** designed for Algerian Arabic legal information retrieval. STCIR combines human topic generation, multi-system bi-encoder retrieval, RRF pooling, and cross-encoder reranking to produce high-quality semi-synthetic relevance judgments while minimizing manual annotation effort.
 
 The framework is particularly useful for **low-resource legal domains**, where fully human-annotated corpora are scarce.
 
@@ -19,7 +19,7 @@ The repository includes:
 ---
 
 ## Code
-The STCALIR pipeline code is available at [GitHub](https://github.com/hatemamine/STCALIR-Semi-Synthetic-Test-Collection-for-Algerian-Legal-IR) and includes:
+The STCIR pipeline code is available at [GitHub](https://github.com/hatemamine/STCIR-Semi-Synthetic-Test-Collection-for-Algerian-Legal-IR) and includes:
 
 - Multi-system retrieval scripts  
 - RRF pooling implementation  
@@ -32,5 +32,5 @@ The STCALIR pipeline code is available at [GitHub](https://github.com/hatemamine
 Clone the repository:
 
 ```bash
-git clone https://github.com/hatemamine/STCALIR-Semi-Synthetic-Test-Collection-for-Algerian-Legal-IR.git
-cd STCALIR-Semi-Synthetic-Test-Collection-for-Algerian-Legal-IR
+git clone https://github.com/hatemamine/STCIR-Semi-Synthetic-Test-Collection-for-Algerian-Legal-IR.git
+cd STCIR-Semi-Synthetic-Test-Collection-for-Algerian-Legal-IR

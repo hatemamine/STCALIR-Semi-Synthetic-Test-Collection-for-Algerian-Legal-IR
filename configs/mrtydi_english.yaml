@@ -1,0 +1,26 @@
+language: english
+dataset: mrtydi_english
+mode: standard
+output_dir: outputs/
+cache_dir: .cache/
+stage1_source: computed
+bm25_top_k: 1000
+dense_top_k: 1000
+pool_top_k: 1000
+rrf_k: 60
+rerank_top_k: 1000
+final_top_k: 10
+annotation_mode: human
+relevance_scale: binary
+metrics:
+  - MRR@10
+  - nDCG@10
+  - MAP
+  - Recall@10
+  - Hit@10
+  - P@10
+device: cuda
+encode_batch_size: 64
+rerank_batch_size: 32
+flask_port: 5000
+flask_host: "0.0.0.0"
