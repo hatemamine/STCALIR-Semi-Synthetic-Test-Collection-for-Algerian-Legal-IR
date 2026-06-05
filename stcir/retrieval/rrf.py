@@ -86,16 +86,20 @@ class Stage1Pool:
         hf_repo: str,
         hf_folder: str,   # "FirstStage_mrTydi" | "FirstStage_mmarco"
         cache_dir: str = ".cache/prebuilt",
+        token: Optional[str] = None,
     ) -> Run:
         """Download pre-built TSV run files from HuggingFace and fuse with RRF."""
+        import os
         from huggingface_hub import list_repo_files, hf_hub_download
+
+        _token = token or os.getenv("HF_TOKEN")
 
         logger.info(f"Downloading pre-built runs from {hf_repo}/{hf_folder} ...")
         cache_path = Path(cache_dir) / hf_folder
         cache_path.mkdir(parents=True, exist_ok=True)
 
         # list files in the subfolder
-        all_files = list(list_repo_files(hf_repo, repo_type="dataset"))
+        all_files = list(list_repo_files(hf_repo, repo_type="dataset", token=_token))
         folder_files = [f for f in all_files if f.startswith(hf_folder + "/") and f.endswith(".tsv")]
 
         if not folder_files:
@@ -113,6 +117,7 @@ class Stage1Pool:
                 filename=hf_path,
                 repo_type="dataset",
                 local_dir=str(cache_path),
+                token=_token,
             )
             run = load_run(local)
             runs.append(run)

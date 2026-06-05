@@ -38,9 +38,16 @@ class PipelineRunner:
                         time is wasted encoding what already exists.
     """
 
-    def __init__(self, config: STCIRConfig, auto_use_prebuilt: bool = True):
-        self.config = config
-        self.ckpt   = Checkpoint(config.cache_path("checkpoints"))
+    def __init__(
+        self,
+        config: STCIRConfig,
+        auto_use_prebuilt: bool = True,
+        hf_token: Optional[str] = None,
+    ):
+        import os
+        self.config    = config
+        self.ckpt      = Checkpoint(config.cache_path("checkpoints"))
+        self.hf_token  = hf_token or os.getenv("HF_TOKEN")
         if auto_use_prebuilt:
             self._apply_prebuilt_overrides()
 
@@ -152,6 +159,7 @@ class PipelineRunner:
                 hf_repo   = self.config.prebuilt_hf_repo,
                 hf_folder = folder,
                 cache_dir = str(self.config.cache_path("prebuilt")),
+                token     = self.hf_token,
             )
         else:
             bm25_run              = self._run_bm25(passages, topics)
@@ -266,6 +274,7 @@ class PipelineRunner:
                 hf_repo   = self.config.prebuilt_hf_repo,
                 hf_folder = folder,
                 cache_dir = str(self.config.cache_path("prebuilt")),
+                token     = self.hf_token,
             )
         else:
             from stcir.reranking.cross_encoder import CrossEncoderReranker
