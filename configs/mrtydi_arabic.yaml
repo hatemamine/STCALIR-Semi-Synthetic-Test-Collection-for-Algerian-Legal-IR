@@ -4,7 +4,8 @@ mode: standard
 output_dir: outputs/
 cache_dir: .cache/
 stage1_source: prebuilt_mrtydi
-prebuilt_hf_repo: hatemestinbejaia/ExperimentDATA_knowledge_distillation_vs_fine_tuning
+stage2_source: prebuilt_mrtydi
+prebuilt_hf_repo: hatemestinbejaia/STCIR_Synthetic-Test-Collection-IR
 bm25_top_k: 1000
 dense_top_k: 1000
 pool_top_k: 1000

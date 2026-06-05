@@ -19,8 +19,13 @@ MODEL_REGISTRY: dict[str, dict] = {
         ],
         "benchmarks": ["mrtydi_arabic", "mmarco_arabic", "algerian_legal"],
         "prebuilt": {
-            "mrtydi_arabic": "FirstStage_mrTydi",
-            "mmarco_arabic": "FirstStage_mmarco",
+            "mrtydi_arabic": {
+                "stage1": "FirstStage_mrTydi",
+                "stage2": "MrTydi_second_stage",
+            },
+            "mmarco_arabic": {
+                "stage1": "FirstStage_mmarco",
+            },
         },
         "default_llm": "google/gemma-3-4b-it",
     },
@@ -78,7 +83,7 @@ IR_DATASETS_MAP: dict[str, dict] = {
     },
 }
 
-PREBUILT_HF_REPO = "hatemestinbejaia/ExperimentDATA_knowledge_distillation_vs_fine_tuning"
+PREBUILT_HF_REPO = "hatemestinbejaia/STCIR_Synthetic-Test-Collection-IR"
 
 # ── Primary HuggingFace dataset repos (default loader; ir_datasets is fallback) ──
 # Keys per entry:

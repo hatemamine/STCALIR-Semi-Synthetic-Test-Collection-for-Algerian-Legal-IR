@@ -12,6 +12,7 @@ from stcir.registry import MODEL_REGISTRY, PREBUILT_HF_REPO
 _VALID_LANGUAGES   = ("arabic", "english")
 _VALID_MODES       = ("standard", "domain")
 _VALID_STAGE1      = ("computed", "prebuilt_mrtydi", "prebuilt_mmarco")
+_VALID_STAGE2      = ("computed", "prebuilt_mrtydi")
 _VALID_ANNOTATION  = ("human", "llm")
 _VALID_TOPIC_MODES = ("human", "llm")
 
@@ -49,8 +50,9 @@ class STCIRConfig:
     prebuilt_hf_repo: str = PREBUILT_HF_REPO
 
     # ── Stage 2 reranking ─────────────────────────────────────────────────────
-    rerank_top_k: int = 1000
-    final_top_k:  int = 10
+    rerank_top_k:  int = 1000
+    final_top_k:   int = 10
+    stage2_source: str = "computed"   # "computed" | "prebuilt_mrtydi"
 
     # ── Models ────────────────────────────────────────────────────────────────
     bi_encoders:    list = field(default_factory=list)
@@ -85,10 +87,14 @@ class STCIRConfig:
             raise ValueError(f"mode must be one of {_VALID_MODES}, got '{self.mode}'")
         if self.stage1_source not in _VALID_STAGE1:
             raise ValueError(f"stage1_source must be one of {_VALID_STAGE1}")
+        if self.stage2_source not in _VALID_STAGE2:
+            raise ValueError(f"stage2_source must be one of {_VALID_STAGE2}")
         if self.mode == "domain" and self.corpus_path is None:
             raise ValueError("corpus_path is required when mode='domain'")
         if self.stage1_source != "computed" and self.language == "english":
             raise ValueError("Pre-built stage1 is only available for Arabic datasets")
+        if self.stage2_source != "computed" and self.language == "english":
+            raise ValueError("Pre-built stage2 is only available for Arabic datasets")
 
         # ── Auto-fill models from registry ───────────────────────────────────
         registry = MODEL_REGISTRY[self.language]
