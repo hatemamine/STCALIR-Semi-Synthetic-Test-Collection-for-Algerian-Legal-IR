@@ -17,11 +17,20 @@ Qrels = dict[str, dict[str, int]]
 #   iterate over qids in the qrel, look up each system's ranked list,
 #   compute MRR / Hit / nDCG / Recall at cutoff k.
 
+def _base_id(pid: str) -> str:
+    """Strip '#segment' suffix from a passage ID to get the document-level ID."""
+    return pid.split("#")[0]
+
+
 def _eval_run_custom(qrels: Qrels, run: Run, k: int = 10) -> dict[str, float]:
     """
     Compute MRR@k, Hit@k, nDCG@k, Recall@k for one system run.
     Iterates over qrels qids; queries absent from the run score 0.
-    All IDs are normalised to str to guard against int/str mismatches.
+
+    Handles the common mr-tydi mismatch where human qrels store document-level
+    IDs (e.g. "1234567") while retrieval runs use passage-level IDs with a
+    segment suffix (e.g. "1234567#0"). Relevance is matched by either exact
+    pid or base document ID, so both formats work transparently.
     """
     run_norm = {str(qid): [(str(pid), sc) for pid, sc in docs]
                 for qid, docs in run.items()}
@@ -35,33 +44,40 @@ def _eval_run_custom(qrels: Qrels, run: Run, k: int = 10) -> dict[str, float]:
         if not rel_pids:
             continue
         n += 1
+        # Build base-document set for doc-level vs passage-level matching
+        rel_base = {_base_id(p) for p in rel_pids}
+
         ranked = [pid for pid, _ in run_norm.get(qid, [])]
 
-        # MRR@k — reciprocal rank of the first relevant doc
+        def is_rel(pid: str) -> bool:
+            return pid in rel_pids or _base_id(pid) in rel_base
+
+        # MRR@k — reciprocal rank of the first relevant passage/doc
         rr = 0.0
         for rank, pid in enumerate(ranked[:k], start=1):
-            if pid in rel_pids:
+            if is_rel(pid):
                 rr = 1.0 / rank
                 break
         mrr += rr
 
         # Hit@k
-        top_k = set(ranked[:k])
-        if top_k & rel_pids:
+        top_k = ranked[:k]
+        if any(is_rel(p) for p in top_k):
             hit += 1
 
         # nDCG@k
         dcg = sum(
             1.0 / np.log2(rank + 1)
-            for rank, pid in enumerate(ranked[:k], start=1)
-            if pid in rel_pids
+            for rank, pid in enumerate(top_k, start=1)
+            if is_rel(pid)
         )
-        n_rel = min(len(rel_pids), k)
+        n_rel = min(len(rel_base), k)   # count distinct relevant docs
         idcg  = sum(1.0 / np.log2(r + 1) for r in range(1, n_rel + 1))
         ndcg += (dcg / idcg) if idcg > 0 else 0.0
 
-        # Recall@k
-        recall += len(top_k & rel_pids) / len(rel_pids)
+        # Recall@k — distinct relevant base-docs retrieved / total relevant
+        retrieved_bases = {_base_id(p) for p in top_k if is_rel(p)}
+        recall += len(retrieved_bases) / max(len(rel_base), 1)
 
     denom = n if n > 0 else 1
     return {
