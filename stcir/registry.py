@@ -93,28 +93,44 @@ PREBUILT_FOLDER_MAP: dict[str, dict[str, str]] = {
 
 # ── Primary HuggingFace dataset repos (default loader; ir_datasets is fallback) ──
 # Keys per entry:
-#   hf_repo        : HuggingFace dataset repo ID
-#   queries_split  : split name that contains queries
-#   corpus_split   : split name that contains passages
-#   qrels_split    : split name that contains qrels (omit → same as queries_split)
+#   hf_repo         : HuggingFace dataset repo ID
+#   queries_config  : named dataset config for the queries split
+#   queries_split   : split name inside that config (usually "train")
+#   corpus_config   : named dataset config for the corpus
+#   corpus_split    : split name inside that config
+#   qrels_config    : named dataset config for qrels
+#   qrels_split     : split name inside that config
 #
-# Column names are auto-detected; common variants tried in order:
-#   qid / query_id / id,  query / text,  pid / doc_id,  passage / text,  relevance / label
+# Column names are auto-detected; non-standard schemas (e.g. mmarco no-header
+# CSV where first row became column names) fall back to positional access:
+# col[0]=pid, col[1]=text.
 HF_PRIMARY_MAP: dict[str, dict] = {
     "mrtydi_arabic": {
-        "hf_repo":       "hatemestinbejaia/mr-tydi-ar-dev",
-        "queries_split": "train",
-        "corpus_split":  "train",
+        "hf_repo":        "hatemestinbejaia/mr-tydi-ar-dev",
+        "queries_config": "arabic_queries",
+        "queries_split":  "train",
+        "corpus_config":  "collection",
+        "corpus_split":   "train",
+        "qrels_config":   "qrels",
+        "qrels_split":    "train",
     },
     "mmarco_arabic": {
-        "hf_repo":       "hatemestinbejaia/mmarco-arabic-dev",
-        "queries_split": "train",
-        "corpus_split":  "train",
+        "hf_repo":        "hatemestinbejaia/mmarco-arabic-dev",
+        "queries_config": "arabic_queries",
+        "queries_split":  "train",
+        "corpus_config":  "collection",
+        "corpus_split":   "train",
+        "qrels_config":   "qrels",
+        "qrels_split":    "train",
     },
     "msmarco": {
-        "hf_repo":       "hatemestinbejaia/mmarco-english-dev",
-        "queries_split": "train",
-        "corpus_split":  "train",
+        "hf_repo":        "hatemestinbejaia/mmarco-english-dev",
+        "queries_config": "english_queries",
+        "queries_split":  "train",
+        "corpus_config":  "collection",
+        "corpus_split":   "train",
+        "qrels_config":   "qrels",
+        "qrels_split":    "train",
     },
 }
 

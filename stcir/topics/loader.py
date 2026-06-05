@@ -13,7 +13,6 @@ Topic = dict   # {"qid": str, "text": str}
 Qrels = dict[str, dict[str, int]]
 
 # ── column-name candidates (tried in order) ───────────────────────────────────
-# Listed from most specific / canonical to most generic so the first match wins.
 _QID_COLS   = ("qid", "query_id", "id", "question_id")
 _QTEXT_COLS = ("query", "text", "question", "query_text")
 _PID_COLS   = ("pid", "doc_id", "passage_id", "docid", "id")
@@ -30,22 +29,39 @@ def _pick(row: dict, candidates: tuple[str, ...], default: str = "") -> str:
 
 # ── HuggingFace primary loader ─────────────────────────────────────────────────
 
-def _hf_load_split(hf_repo: str, split: str) -> Any:
-    """Load a HuggingFace dataset split, falling back to 'train' if the split is missing."""
+def _hf_load_split(
+    hf_repo: str,
+    split: str,
+    config: str | None = None,
+) -> Any:
+    """Load one split from a HuggingFace dataset, with optional named config."""
     from datasets import load_dataset
+    kwargs: dict = dict(trust_remote_code=False)
     try:
-        return load_dataset(hf_repo, split=split, trust_remote_code=False)
+        if config:
+            return load_dataset(hf_repo, config, split=split, **kwargs)
+        return load_dataset(hf_repo, split=split, **kwargs)
     except Exception:
         if split != "train":
-            return load_dataset(hf_repo, split="train", trust_remote_code=False)
+            if config:
+                return load_dataset(hf_repo, config, split="train", **kwargs)
+            return load_dataset(hf_repo, split="train", **kwargs)
         raise
 
 
-def _hf_topics(hf_repo: str, split: str) -> list[Topic]:
-    logger.info(f"Loading topics from HuggingFace: {hf_repo} (split={split})")
-    ds = _hf_load_split(hf_repo, split)
-    topics: list[Topic] = []
+def _hf_topics(
+    hf_repo: str,
+    split: str,
+    config: str | None = None,
+) -> list[Topic]:
+    logger.info(
+        f"Loading topics from HuggingFace: {hf_repo}"
+        + (f" [{config}]" if config else "")
+        + f" (split={split})"
+    )
+    ds = _hf_load_split(hf_repo, split, config)
     sample = ds[0] if len(ds) > 0 else {}
+    topics: list[Topic] = []
     for row in ds:
         qid  = _pick(row, _QID_COLS)
         text = _pick(row, _QTEXT_COLS)
@@ -60,17 +76,19 @@ def _hf_topics(hf_repo: str, split: str) -> list[Topic]:
     return topics
 
 
-def _hf_qrels(hf_repo: str, qrels_split: str) -> Qrels:
-    """
-    Load qrels from a dedicated HuggingFace split.
-
-    For mmarco-subset this is the 'qrels' split with columns: qid, pid, relevance.
-    For other repos the split is usually the same as the queries split.
-    """
-    logger.info(f"Loading qrels from HuggingFace: {hf_repo} (split={qrels_split})")
-    ds = _hf_load_split(hf_repo, qrels_split)
-    qrels: Qrels = {}
+def _hf_qrels(
+    hf_repo: str,
+    qrels_split: str,
+    config: str | None = None,
+) -> Qrels:
+    logger.info(
+        f"Loading qrels from HuggingFace: {hf_repo}"
+        + (f" [{config}]" if config else "")
+        + f" (split={qrels_split})"
+    )
+    ds = _hf_load_split(hf_repo, qrels_split, config)
     sample = ds[0] if len(ds) > 0 else {}
+    qrels: Qrels = {}
     for row in ds:
         qid     = _pick(row, _QID_COLS)
         pid     = _pick(row, _PID_COLS)
@@ -96,22 +114,60 @@ def _hf_qrels(hf_repo: str, qrels_split: str) -> Qrels:
     return qrels
 
 
-def _hf_corpus(hf_repo: str, split: str) -> list[dict]:
-    logger.info(f"Loading corpus from HuggingFace: {hf_repo} (split={split})")
-    ds = _hf_load_split(hf_repo, split)
-    passages: list[dict] = []
+def _hf_corpus(
+    hf_repo: str,
+    split: str,
+    config: str | None = None,
+) -> list[dict]:
+    logger.info(
+        f"Loading corpus from HuggingFace: {hf_repo}"
+        + (f" [{config}]" if config else "")
+        + f" (split={split})"
+    )
+    ds = _hf_load_split(hf_repo, split, config)
+    cols   = list(ds.features.keys())
     sample = ds[0] if len(ds) > 0 else {}
-    for row in ds:
-        pid  = _pick(row, _PID_COLS)
-        text = _pick(row, _PTEXT_COLS)
-        if not pid:
-            pid = str(len(passages))
-        if text:
-            passages.append({"pid": pid, "text": text, "doc_id": pid})
+
+    # Check whether the dataset has recognisable column names.
+    # mmarco collections were uploaded without headers so the first data row
+    # became the column names (e.g. '0' and a long passage string).  In that
+    # case fall back to positional access: col[0]=pid, col[1]=text.
+    has_pid  = any(c in sample for c in _PID_COLS)
+    has_text = any(c in sample for c in _PTEXT_COLS)
+
+    passages: list[dict] = []
+
+    if has_pid and has_text:
+        for row in ds:
+            pid  = _pick(row, _PID_COLS)
+            text = _pick(row, _PTEXT_COLS)
+            if not pid:
+                pid = str(len(passages))
+            if text:
+                passages.append({"pid": pid, "text": text, "doc_id": pid})
+    else:
+        # Positional fallback
+        if len(cols) < 2:
+            raise ValueError(
+                f"Cannot parse corpus from {hf_repo}: only {len(cols)} column(s) "
+                f"and none match known names {_PID_COLS + _PTEXT_COLS}. "
+                f"Columns: {cols}"
+            )
+        pid_col, text_col = cols[0], cols[1]
+        logger.warning(
+            f"Non-standard corpus columns {cols[:2]} — using positional fallback "
+            f"(col[0]={pid_col!r} → pid, col[1]={text_col!r} → text)"
+        )
+        for i, row in enumerate(ds):
+            pid  = str(row[pid_col]) if row[pid_col] is not None else str(i)
+            text = str(row[text_col]) if row[text_col] is not None else ""
+            if text:
+                passages.append({"pid": pid, "text": text, "doc_id": pid})
+
     if not passages:
         raise ValueError(
             f"No passages extracted from {hf_repo}. "
-            f"Available columns: {list(sample.keys())}"
+            f"Available columns: {cols}"
         )
     logger.info(f"Loaded {len(passages):,} passages from HuggingFace")
     return passages
@@ -123,9 +179,7 @@ def load_topics(dataset: str, split: str | None = None) -> list[Topic]:
     """
     Load queries for a benchmark dataset.
 
-    Tries hatemestinbejaia/mr-tydi-ar-dev or hatemestinbejaia/mmarco-subset first
-    (if configured in HF_PRIMARY_MAP); falls back to ir_datasets.
-
+    Tries HF_PRIMARY_MAP repo first; falls back to ir_datasets.
     dataset : mrtydi_arabic | mrtydi_english | mmarco_arabic | msmarco
     split   : "test" | "dev" | "train"  (defaults to dataset's default_split)
     """
@@ -134,21 +188,23 @@ def load_topics(dataset: str, split: str | None = None) -> list[Topic]:
 
     if ids is None and hf_cfg is None:
         raise ValueError(
-            f"Unknown dataset '{dataset}'. Known: {sorted(set(list(IR_DATASETS_MAP) + list(HF_PRIMARY_MAP)))}\n"
+            f"Unknown dataset '{dataset}'. Known: "
+            f"{sorted(set(list(IR_DATASETS_MAP) + list(HF_PRIMARY_MAP)))}\n"
             "For a custom corpus use mode='domain'."
         )
 
-    # Determine split
     _split = split or (ids["default_split"] if ids else "train")
 
-    # ── Try HuggingFace primary first ──────────────────────────────────────────
     if hf_cfg:
         try:
-            return _hf_topics(hf_cfg["hf_repo"], hf_cfg.get("queries_split", _split))
+            return _hf_topics(
+                hf_cfg["hf_repo"],
+                hf_cfg.get("queries_split", _split),
+                hf_cfg.get("queries_config"),
+            )
         except Exception as e:
-            logger.warning(f"HF primary load failed ({e}); falling back to ir_datasets")
+            logger.warning(f"HF primary topics load failed ({e}); falling back to ir_datasets")
 
-    # ── ir_datasets fallback ───────────────────────────────────────────────────
     if ids is None:
         raise RuntimeError(f"No ir_datasets entry for '{dataset}' and HF load failed.")
 
@@ -184,10 +240,11 @@ def load_reference_qrels(dataset: str, split: str | None = None) -> Qrels:
 
     if hf_cfg:
         try:
-            # Use dedicated qrels_split when present (e.g. mmarco-subset has a 'qrels' split);
-            # fall back to queries_split if not specified.
-            qs = hf_cfg.get("qrels_split") or hf_cfg.get("queries_split", _split)
-            return _hf_qrels(hf_cfg["hf_repo"], qs)
+            return _hf_qrels(
+                hf_cfg["hf_repo"],
+                hf_cfg.get("qrels_split") or hf_cfg.get("queries_split", _split),
+                hf_cfg.get("qrels_config") or hf_cfg.get("queries_config"),
+            )
         except Exception as e:
             logger.warning(f"HF primary qrels load failed ({e}); falling back to ir_datasets")
 
@@ -224,7 +281,11 @@ def load_corpus_ir(dataset: str) -> list[dict]:
 
     if hf_cfg:
         try:
-            return _hf_corpus(hf_cfg["hf_repo"], hf_cfg.get("corpus_split", "train"))
+            return _hf_corpus(
+                hf_cfg["hf_repo"],
+                hf_cfg.get("corpus_split", "train"),
+                hf_cfg.get("corpus_config"),
+            )
         except Exception as e:
             logger.warning(f"HF primary corpus load failed ({e}); falling back to ir_datasets")
 
