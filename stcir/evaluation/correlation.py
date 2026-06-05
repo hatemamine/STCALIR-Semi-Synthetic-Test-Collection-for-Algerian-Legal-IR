@@ -12,59 +12,158 @@ Run   = dict[str, list[tuple[str, float]]]
 Qrels = dict[str, dict[str, int]]
 
 
+# ── Self-contained rank-based metrics (no ir_measures dependency) ─────────────
+# Matches the approach from the original working script:
+#   iterate over qids in the qrel, look up each system's ranked list,
+#   compute MRR / Hit / nDCG / Recall at cutoff k.
+
+def _eval_run_custom(qrels: Qrels, run: Run, k: int = 10) -> dict[str, float]:
+    """
+    Compute MRR@k, Hit@k, nDCG@k, Recall@k for one system run.
+    Iterates over qrels qids; queries absent from the run score 0.
+    All IDs are normalised to str to guard against int/str mismatches.
+    """
+    run_norm = {str(qid): [(str(pid), sc) for pid, sc in docs]
+                for qid, docs in run.items()}
+
+    mrr = hit = ndcg = recall = 0.0
+    n = 0
+
+    for qid_raw, rel_docs in qrels.items():
+        qid = str(qid_raw)
+        rel_pids = {str(p) for p in rel_docs}
+        if not rel_pids:
+            continue
+        n += 1
+        ranked = [pid for pid, _ in run_norm.get(qid, [])]
+
+        # MRR@k — reciprocal rank of the first relevant doc
+        rr = 0.0
+        for rank, pid in enumerate(ranked[:k], start=1):
+            if pid in rel_pids:
+                rr = 1.0 / rank
+                break
+        mrr += rr
+
+        # Hit@k
+        top_k = set(ranked[:k])
+        if top_k & rel_pids:
+            hit += 1
+
+        # nDCG@k
+        dcg = sum(
+            1.0 / np.log2(rank + 1)
+            for rank, pid in enumerate(ranked[:k], start=1)
+            if pid in rel_pids
+        )
+        n_rel = min(len(rel_pids), k)
+        idcg  = sum(1.0 / np.log2(r + 1) for r in range(1, n_rel + 1))
+        ndcg += (dcg / idcg) if idcg > 0 else 0.0
+
+        # Recall@k
+        recall += len(top_k & rel_pids) / len(rel_pids)
+
+    denom = n if n > 0 else 1
+    return {
+        f"MRR@{k}":    mrr    / denom,
+        f"Hit@{k}":    hit    / denom,
+        f"nDCG@{k}":   ndcg   / denom,
+        f"Recall@{k}": recall / denom,
+    }
+
+
+def _qid_overlap_info(qrels: Qrels, runs: dict[str, Run]) -> tuple[int, int, int]:
+    """Return (n_qrel_qids, n_run_qids, n_overlap) for diagnostics."""
+    qrel_qids = {str(q) for q in qrels}
+    run_qids  = {str(q) for run in runs.values() for q in run}
+    return len(qrel_qids), len(run_qids), len(qrel_qids & run_qids)
+
+
+# ── System-level correlation ──────────────────────────────────────────────────
+
 def compute_system_correlation(
     human_qrels: Qrels,
     synthetic_qrels: Qrels,
     runs: dict[str, Run],
     metrics: list[str] | None = None,
+    k: int = 10,
 ) -> pd.DataFrame:
     """
-    For each metric, rank the systems by score under human vs. synthetic qrels.
-    Compute Global Kendall's τ and Spearman's ρ between the two rankings.
+    For each metric, compute per-system scores under human and synthetic qrels,
+    then compute Kendall's τ and Spearman's ρ between the two system rankings.
 
-    Returns a DataFrame: index=metric, columns=[kendall_tau, spearman_rho].
+    Uses a self-contained rank-based implementation (no ir_measures) to avoid
+    canonical-name mismatches and to gracefully handle partial qid overlap.
+
+    Returns a DataFrame indexed by metric with columns:
+        kendall_tau, kendall_p, spearman_rho, spearman_p, n_systems
     """
-    from stcir.evaluation.metrics import evaluate_multiple_runs
-
     if metrics is None:
-        metrics = ["MRR@10", "nDCG@10", "Recall@10"]
+        metrics = [f"MRR@{k}", f"nDCG@{k}", f"Recall@{k}"]
 
-    human_scores     = evaluate_multiple_runs(human_qrels,     runs, metrics)
-    synthetic_scores = evaluate_multiple_runs(synthetic_qrels, runs, metrics)
+    # ── Diagnostics ───────────────────────────────────────────────────────
+    nq_h, nr_h, ov_h = _qid_overlap_info(human_qrels, runs)
+    nq_s, nr_s, ov_s = _qid_overlap_info(synthetic_qrels, runs)
+    logger.info(
+        f"Human qrels: {nq_h} qids, runs: {nr_h} qids, overlap: {ov_h}. "
+        f"Synthetic qrels: {nq_s} qids, overlap with runs: {ov_s}."
+    )
+    if ov_h == 0:
+        logger.warning(
+            "Zero overlap between human qrels query IDs and system run query IDs. "
+            "All systems will score 0 under human qrels → correlation will be NaN. "
+            f"Sample human qrel qids : {list(human_qrels)[:5]}. "
+            f"Sample run qids        : {list(next(iter(runs.values())))[:5]}."
+        )
 
+    # ── Compute per-system scores ─────────────────────────────────────────
+    system_names = list(runs.keys())
+    h_scores: dict[str, list[float]] = {m: [] for m in metrics}
+    s_scores: dict[str, list[float]] = {m: [] for m in metrics}
+
+    for name in system_names:
+        run = runs[name]
+        h = _eval_run_custom(human_qrels,     run, k=k)
+        s = _eval_run_custom(synthetic_qrels, run, k=k)
+        for m in metrics:
+            h_scores[m].append(h.get(m, 0.0))
+            s_scores[m].append(s.get(m, 0.0))
+
+    # ── Correlate ─────────────────────────────────────────────────────────
     records = []
-    for metric in human_scores.columns:
-        h = human_scores[metric].dropna()
-        s = synthetic_scores[metric].reindex(h.index).dropna()
-        common = h.index.intersection(s.index)
-        h, s = h[common], s[common]
+    for metric in metrics:
+        h_arr = np.array(h_scores[metric])
+        s_arr = np.array(s_scores[metric])
+        n     = len(system_names)
 
-        if len(common) < 2 or h.nunique() < 2 or s.nunique() < 2:
-            # Correlation is undefined when one array is constant (all systems
-            # scored identically). Most often caused by query-ID mismatch between
-            # the human qrels and the system runs (no overlap → all scores = 0).
+        if n < 2 or np.unique(h_arr).size < 2 or np.unique(s_arr).size < 2:
             tau, tau_p, rho, rho_p = float("nan"), float("nan"), float("nan"), float("nan")
             logger.warning(
-                f"Metric '{metric}': all {len(common)} systems have identical scores "
-                f"under human or synthetic qrels — correlation undefined. "
-                f"Check that system run query IDs match the human qrels."
+                f"Metric '{metric}': all {n} systems have identical scores under "
+                f"human or synthetic qrels — correlation undefined. "
+                f"Human scores: {h_arr.tolist()}. Synthetic scores: {s_arr.tolist()}."
             )
         else:
-            tau, tau_p = kendalltau(h.values, s.values)
-            rho, rho_p = spearmanr(h.values, s.values)
+            tau, tau_p = kendalltau(h_arr, s_arr)
+            rho, rho_p = spearmanr(h_arr, s_arr)
+
         records.append({
             "metric":       metric,
-            "kendall_tau":  round(tau, 4),
-            "kendall_p":    round(tau_p, 4),
-            "spearman_rho": round(rho, 4),
-            "spearman_p":   round(rho_p, 4),
-            "n_systems":    len(common),
+            "kendall_tau":  round(float(tau),   4),
+            "kendall_p":    round(float(tau_p), 4),
+            "spearman_rho": round(float(rho),   4),
+            "spearman_p":   round(float(rho_p), 4),
+            "n_systems":    n,
         })
 
     df = pd.DataFrame(records).set_index("metric")
-    logger.info(f"System-level correlation computed over {len(runs)} systems, {len(metrics)} metrics")
+    logger.info(
+        f"System-level correlation: {len(runs)} systems, {len(metrics)} metrics"
+    )
     return df
 
+
+# ── Global pair-level correlation ─────────────────────────────────────────────
 
 def global_rank_correlation(
     human_qrels_path: str,
@@ -73,32 +172,30 @@ def global_rank_correlation(
 ) -> dict[str, float]:
     """
     Global Kendall's τ and Spearman's ρ at the query-document pair level.
-    Mirrors the approach in KENDALL_TAU+R@k_MRR@k.py.
     """
     human_qrels     = load_qrels(human_qrels_path)
     synthetic_qrels = load_qrels(synthetic_qrels_path)
 
-    # Build pair-level rank arrays
     all_pairs: set[tuple[str, str]] = set()
     for qid, docs in human_qrels.items():
         for pid in docs:
-            all_pairs.add((qid, pid))
+            all_pairs.add((str(qid), str(pid)))
     for qid, docs in synthetic_qrels.items():
-        if len(list(docs.items())) <= top_k:
+        if len(docs) <= top_k:
             for pid in docs:
-                all_pairs.add((qid, pid))
+                all_pairs.add((str(qid), str(pid)))
 
     h_ranks, s_ranks = [], []
     for qid, pid in all_pairs:
-        h_rel = human_qrels.get(qid, {}).get(pid, 0)
-        s_rel = synthetic_qrels.get(qid, {}).get(pid, 0)
-        h_ranks.append(h_rel)
-        s_ranks.append(s_rel)
+        h_ranks.append(human_qrels.get(qid, {}).get(pid, 0))
+        s_ranks.append(synthetic_qrels.get(qid, {}).get(pid, 0))
 
-    tau, _  = kendalltau(h_ranks, s_ranks)
-    rho, _  = spearmanr(h_ranks, s_ranks)
+    tau, _ = kendalltau(h_ranks, s_ranks)
+    rho, _ = spearmanr(h_ranks, s_ranks)
     return {"global_kendall_tau": round(tau, 4), "global_spearman_rho": round(rho, 4)}
 
+
+# ── Scatter plot ──────────────────────────────────────────────────────────────
 
 def plot_system_scatter(
     human_qrels: Qrels,
@@ -107,33 +204,41 @@ def plot_system_scatter(
     metric: str = "MRR@10",
     title: str | None = None,
     save_path: str | None = None,
+    k: int = 10,
 ):
     """Scatter plot: human metric score (x) vs synthetic metric score (y) per system."""
     import matplotlib.pyplot as plt
-    from stcir.evaluation.metrics import evaluate_multiple_runs
 
-    df_h = evaluate_multiple_runs(human_qrels,     runs, [metric])
-    df_s = evaluate_multiple_runs(synthetic_qrels, runs, [metric])
-    # Use the actual returned column name in case ir_measures renames it
-    col = metric if metric in df_h.columns else df_h.columns[0]
-    h = df_h[col]
-    s = df_s[col]
+    system_names = list(runs.keys())
+    h_vals = [_eval_run_custom(human_qrels,     runs[n], k=k).get(metric, 0.0) for n in system_names]
+    s_vals = [_eval_run_custom(synthetic_qrels, runs[n], k=k).get(metric, 0.0) for n in system_names]
+
+    h = np.array(h_vals)
+    s = np.array(s_vals)
 
     fig, ax = plt.subplots(figsize=(6, 6))
-    ax.scatter(h.values, s.values, zorder=3)
+    ax.scatter(h, s, zorder=3)
 
-    for name, hv, sv in zip(h.index, h.values, s.values):
+    for name, hv, sv in zip(system_names, h, s):
         ax.annotate(name, (hv, sv), fontsize=7, ha="left", va="bottom")
 
     lo = min(h.min(), s.min()) * 0.95
     hi = max(h.max(), s.max()) * 1.05
+    if lo == hi:
+        lo, hi = lo - 0.01, hi + 0.01
     ax.plot([lo, hi], [lo, hi], "k--", lw=1, label="perfect agreement")
 
-    tau, _ = kendalltau(h.values, s.values)
-    rho, _ = spearmanr(h.values, s.values)
+    if np.unique(h).size >= 2 and np.unique(s).size >= 2:
+        tau, _ = kendalltau(h, s)
+        rho, _ = spearmanr(h, s)
+        corr_text = f"Kendall's τ = {tau:.3f}\nSpearman ρ = {rho:.3f}"
+    else:
+        corr_text = "correlation undefined\n(constant scores)"
+
     ax.set_xlabel(f"Human {metric}")
     ax.set_ylabel(f"Synthetic {metric}")
-    ax.set_title(title or f"System-level correlation ({metric})\nτ={tau:.3f}, ρ={rho:.3f}")
+    ax.set_title(title or f"System-level correlation ({metric})")
+    ax.text(lo, hi, corr_text, verticalalignment="top", fontsize=9)
     ax.legend()
     plt.tight_layout()
 
