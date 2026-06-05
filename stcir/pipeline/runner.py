@@ -421,9 +421,11 @@ class PipelineRunner:
         }
 
     def _collect_system_runs(self) -> dict[str, Run]:
-        runs_dir: Path = self.config.cache_path("runs")
+        runs_dir:     Path = self.config.cache_path("runs")
+        prebuilt_dir: Path = self.config.cache_path("prebuilt")
         out: dict[str, Run] = {}
 
+        # Computed runs
         for label, fname in [("BM25", "bm25.tsv"), ("Pool-RRF", "stage1_pool.tsv"),
                               ("Full-Pipeline", "top10_reranked.tsv")]:
             p = runs_dir / fname
@@ -441,5 +443,22 @@ class PipelineRunner:
             p = runs_dir / f"ce_{s}.tsv"
             if p.exists():
                 out[f"CE-{s}"] = load_run(p)
+
+        # Pre-built individual run files (Stage-1 and/or Stage-2 downloaded from HF)
+        if prebuilt_dir.exists():
+            import itertools
+            for run_file in itertools.chain(
+                sorted(prebuilt_dir.rglob("*.tsv")),
+                sorted(prebuilt_dir.rglob("*.txt")),
+            ):
+                label = run_file.stem
+                if label in out:
+                    continue
+                try:
+                    run = load_run(run_file)
+                    if run:
+                        out[label] = run
+                except Exception:
+                    pass
 
         return out
