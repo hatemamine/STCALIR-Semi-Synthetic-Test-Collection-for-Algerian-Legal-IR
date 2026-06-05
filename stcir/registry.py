@@ -18,14 +18,11 @@ MODEL_REGISTRY: dict[str, dict] = {
             "hatemestinbejaia/mmarco-Arabic-mBERT-cross-encoder-v1",
         ],
         "benchmarks": ["mrtydi_arabic", "mmarco_arabic", "algerian_legal"],
+        # Values are stage1_source / stage2_source config strings.
+        # PREBUILT_FOLDER_MAP (below) maps those strings → HF folder names.
         "prebuilt": {
-            "mrtydi_arabic": {
-                "stage1": "FirstStage_mrTydi",
-                "stage2": "MrTydi_second_stage",
-            },
-            "mmarco_arabic": {
-                "stage1": "FirstStage_mmarco",
-            },
+            "mrtydi_arabic": {"stage1": "prebuilt_mrtydi", "stage2": "prebuilt_mrtydi"},
+            "mmarco_arabic": {"stage1": "prebuilt_mmarco"},
         },
         "default_llm": "google/gemma-3-4b-it",
     },
@@ -84,6 +81,17 @@ IR_DATASETS_MAP: dict[str, dict] = {
 }
 
 PREBUILT_HF_REPO = "hatemestinbejaia/STCIR_Synthetic-Test-Collection-IR"
+
+# Maps stage1_source / stage2_source config values → HF folder names inside PREBUILT_HF_REPO
+PREBUILT_FOLDER_MAP: dict[str, dict[str, str]] = {
+    "stage1": {
+        "prebuilt_mrtydi": "FirstStage_mrTydi",
+        "prebuilt_mmarco": "FirstStage_mmarco",
+    },
+    "stage2": {
+        "prebuilt_mrtydi": "MrTydi_second_stage",
+    },
+}
 
 # ── Primary HuggingFace dataset repos (default loader; ir_datasets is fallback) ──
 # Keys per entry:
