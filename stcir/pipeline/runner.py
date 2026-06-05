@@ -149,6 +149,15 @@ class PipelineRunner:
             logger.info(f"[{self.config.dataset}] Phase 3 ✓ (cached)")
             return load_run(pool_path)
 
+        # Pre-built Stage-2 contains the final top-10 directly →
+        # Stage-1 pool is not needed; phase 4 will download it.
+        if self.config.stage2_source != "computed":
+            logger.info(
+                f"[{self.config.dataset}] Phase 3 SKIPPED — "
+                f"stage2_source='{self.config.stage2_source}' (pre-built Stage-2 available)"
+            )
+            return {}
+
         from stcir.retrieval.rrf import Stage1Pool
         stage1 = Stage1Pool(rrf_k=self.config.rrf_k, top_k=self.config.pool_top_k)
 
