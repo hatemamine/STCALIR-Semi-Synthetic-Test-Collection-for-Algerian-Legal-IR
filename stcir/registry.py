@@ -22,7 +22,7 @@ MODEL_REGISTRY: dict[str, dict] = {
             "mrtydi_arabic": {"stage1": "prebuilt_mrtydi", "stage2": "prebuilt_mrtydi"},
             "mmarco_arabic": {"stage1": "prebuilt_mmarco"},
         },
-        "default_llm": "google/gemma-3-4b-it",
+        "default_llm": "google/gemma-4-E4B-it",
     },
     "english": {
         "bi_encoders": [
@@ -43,7 +43,7 @@ MODEL_REGISTRY: dict[str, dict] = {
         ],
         "benchmarks": ["mrtydi_english", "msmarco", "custom_domain"],
         "prebuilt": {},
-        "default_llm": "google/gemma-3-4b-it",
+        "default_llm": "google/gemma-4-E4B-it",
     },
 }
 

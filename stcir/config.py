@@ -60,7 +60,7 @@ class STCIRConfig:
 
     # ── Annotation ────────────────────────────────────────────────────────────
     annotation_mode:  str = "human"
-    llm_model:        str = "google/gemma-3-4b-it"
+    llm_model:        str = "google/gemma-4-E4B-it"
     llm_batch_size:   int = 8
     relevance_scale:  str = "binary"
 

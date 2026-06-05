@@ -34,7 +34,7 @@ class GemmaTopicGenerator:
 
     def __init__(
         self,
-        model_name: str = "google/gemma-3-4b-it",
+        model_name: str = "google/gemma-4-E4B-it",
         device: str = "cpu",
         language: str = "arabic",
         max_new_tokens: int = 40,

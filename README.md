@@ -101,7 +101,7 @@ in your config to use them. The batch runner detects availability automatically.
 ## LLM Annotation with Gemma 3 4B
 
 When `annotation_mode: llm`, the framework uses **Google Gemma 3 4B Instruct**
-(`google/gemma-3-4b-it`) to judge the relevance of each (query, passage) pair in the top-10 list.
+(`google/gemma-4-E4B-it`) to judge the relevance of each (query, passage) pair in the top-10 list.
 
 - **Arabic prompt**: instructs the model to respond `نعم` (relevant) or `لا` (not relevant)
 - **English prompt**: instructs the model to respond `Yes` or `No`
