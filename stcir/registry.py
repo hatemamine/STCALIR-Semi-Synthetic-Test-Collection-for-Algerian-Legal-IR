@@ -11,11 +11,9 @@ MODEL_REGISTRY: dict[str, dict] = {
             "hatemestinbejaia/mmarco-Arabic-mMiniLML-bi-encoder-NoKD-v1",
         ],
         "cross_encoders": [
-            "hatemestinbejaia/mmarco-Arabic-AraElectra-cross-encoder-v1",
-            "hatemestinbejaia/mmarco-Arabic-AraBERT-cross-encoder-v1",
-            "hatemestinbejaia/mmarco-Arabic-mMiniLML-cross-encoder-v1",
-            "hatemestinbejaia/mmarco-Arabic-CAMeL-cross-encoder-v1",
-            "hatemestinbejaia/mmarco-Arabic-mBERT-cross-encoder-v1",
+            "hatemestinbejaia/mmarco-Arabic-AraElectra-cross-encoder-KD-v1",
+            "hatemestinbejaia/mmarco-Arabic-AraDPR-cross-encoder-KD-v1",
+            "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
         ],
         "benchmarks": ["mrtydi_arabic", "mmarco_arabic", "algerian_legal"],
         # Values are stage1_source / stage2_source config strings.

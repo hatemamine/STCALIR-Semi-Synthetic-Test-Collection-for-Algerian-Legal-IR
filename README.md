@@ -167,11 +167,9 @@ result = runner.run_all()   # returns dict with qrels, results DataFrame, ...
 
 | Model | HF repo |
 |---|---|
-| AraElectra cross-encoder | `hatemestinbejaia/mmarco-Arabic-AraElectra-cross-encoder-v1` |
-| AraBERT cross-encoder | `hatemestinbejaia/mmarco-Arabic-AraBERT-cross-encoder-v1` |
-| mMiniLM cross-encoder | `hatemestinbejaia/mmarco-Arabic-mMiniLML-cross-encoder-v1` |
-| CAMeL cross-encoder | `hatemestinbejaia/mmarco-Arabic-CAMeL-cross-encoder-v1` |
-| mBERT cross-encoder | `hatemestinbejaia/mmarco-Arabic-mBERT-cross-encoder-v1` |
+| AraElectra cross-encoder KD | `hatemestinbejaia/mmarco-Arabic-AraElectra-cross-encoder-KD-v1` |
+| AraDPR cross-encoder KD | `hatemestinbejaia/mmarco-Arabic-AraDPR-cross-encoder-KD-v1` |
+| mMiniLMv2 cross-encoder | `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` |
 
 ---
 
