@@ -104,11 +104,8 @@ class GemmaAnnotator:
 
             best_idx = self._select_best(query, passages_text, n=n)
 
-            # Exactly one document is marked relevant (1); the rest are 0.
-            qrels[str(qid)] = {
-                pid: (1 if i == best_idx else 0)
-                for i, pid in enumerate(pids)
-            }
+            # Only the best document is stored; irrelevant ones are omitted.
+            qrels[str(qid)] = {pids[best_idx]: 1}
 
         n_rel = sum(sum(d.values()) for d in qrels.values())
         logger.info(
