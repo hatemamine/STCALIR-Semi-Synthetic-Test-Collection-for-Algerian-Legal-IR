@@ -39,8 +39,19 @@ def compute_system_correlation(
         common = h.index.intersection(s.index)
         h, s = h[common], s[common]
 
-        tau, tau_p   = kendalltau(h.values, s.values)
-        rho, rho_p   = spearmanr(h.values, s.values)
+        if len(common) < 2 or h.nunique() < 2 or s.nunique() < 2:
+            # Correlation is undefined when one array is constant (all systems
+            # scored identically). Most often caused by query-ID mismatch between
+            # the human qrels and the system runs (no overlap → all scores = 0).
+            tau, tau_p, rho, rho_p = float("nan"), float("nan"), float("nan"), float("nan")
+            logger.warning(
+                f"Metric '{metric}': all {len(common)} systems have identical scores "
+                f"under human or synthetic qrels — correlation undefined. "
+                f"Check that system run query IDs match the human qrels."
+            )
+        else:
+            tau, tau_p = kendalltau(h.values, s.values)
+            rho, rho_p = spearmanr(h.values, s.values)
         records.append({
             "metric":       metric,
             "kendall_tau":  round(tau, 4),
@@ -101,8 +112,12 @@ def plot_system_scatter(
     import matplotlib.pyplot as plt
     from stcir.evaluation.metrics import evaluate_multiple_runs
 
-    h = evaluate_multiple_runs(human_qrels,     runs, [metric])[metric]
-    s = evaluate_multiple_runs(synthetic_qrels, runs, [metric])[metric]
+    df_h = evaluate_multiple_runs(human_qrels,     runs, [metric])
+    df_s = evaluate_multiple_runs(synthetic_qrels, runs, [metric])
+    # Use the actual returned column name in case ir_measures renames it
+    col = metric if metric in df_h.columns else df_h.columns[0]
+    h = df_h[col]
+    s = df_s[col]
 
     fig, ax = plt.subplots(figsize=(6, 6))
     ax.scatter(h.values, s.values, zorder=3)

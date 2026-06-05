@@ -25,6 +25,9 @@ METRIC_MAP = {
     "P@10":      "P@10",
 }
 
+# Reverse map: ir_measures canonical name → user-facing name
+_REVERSE_METRIC_MAP = {v: k for k, v in METRIC_MAP.items()}
+
 
 def evaluate_run(
     qrels: Qrels,
@@ -56,7 +59,9 @@ def evaluate_run(
 
     measures = _parse_metrics(metrics)
     results = ir_measures.calc_aggregate(measures, qrels_records, run_records)
-    scores = {str(m): v for m, v in results.items()}
+    # Normalize ir_measures canonical names (e.g. "RR@10") back to user-facing
+    # names (e.g. "MRR@10") so callers can index by the names they requested.
+    scores = {_REVERSE_METRIC_MAP.get(str(m), str(m)): v for m, v in results.items()}
     return pd.Series(scores, name=run_name)
 
 
