@@ -37,6 +37,32 @@ def rrf_fuse(runs: list[Run], k: int = 60, top_k: int = 1000) -> Run:
     return fused
 
 
+# ── Prebuilt availability probe ───────────────────────────────────────────────
+
+def check_prebuilt_available(
+    hf_repo: str,
+    hf_folder: str,
+    token: Optional[str] = None,
+) -> bool:
+    """
+    Return True if hf_folder inside hf_repo contains at least one .tsv/.txt run file.
+    Returns False on any error (network, auth, missing folder) so the caller can
+    fall back to computed mode safely.
+    """
+    import os
+    _token = token or os.getenv("HF_TOKEN")
+    try:
+        from huggingface_hub import list_repo_files
+        files = list_repo_files(hf_repo, repo_type="dataset", token=_token)
+        return any(
+            f.startswith(hf_folder + "/") and f.endswith((".tsv", ".txt"))
+            for f in files
+        )
+    except Exception as e:
+        logger.warning(f"Prebuilt check failed for {hf_repo}/{hf_folder}: {e}")
+        return False
+
+
 # ── Stage-1 Pool builder ──────────────────────────────────────────────────────
 
 @dataclass

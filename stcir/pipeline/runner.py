@@ -54,6 +54,8 @@ class PipelineRunner:
     # ── Prebuilt auto-detection ───────────────────────────────────────────
 
     def _apply_prebuilt_overrides(self) -> None:
+        from stcir.retrieval.rrf import check_prebuilt_available
+
         pb = (
             MODEL_REGISTRY
             .get(self.config.language, {})
@@ -62,12 +64,22 @@ class PipelineRunner:
         )
         if not pb:
             return
-        if "stage1" in pb and self.config.stage1_source == "computed":
-            self.config.stage1_source = pb["stage1"]
-            logger.info(f"[{self.config.dataset}] prebuilt stage1 → {self.config.stage1_source}")
-        if "stage2" in pb and self.config.stage2_source == "computed":
-            self.config.stage2_source = pb["stage2"]
-            logger.info(f"[{self.config.dataset}] prebuilt stage2 → {self.config.stage2_source}")
+
+        for stage, src_attr in [("stage1", "stage1_source"), ("stage2", "stage2_source")]:
+            if stage not in pb or getattr(self.config, src_attr) != "computed":
+                continue
+            source = pb[stage]
+            folder = PREBUILT_FOLDER_MAP.get(stage, {}).get(source, "")
+            if check_prebuilt_available(self.config.prebuilt_hf_repo, folder, self.hf_token):
+                setattr(self.config, src_attr, source)
+                logger.info(
+                    f"[{self.config.dataset}] prebuilt {stage} available → {source}"
+                )
+            else:
+                logger.info(
+                    f"[{self.config.dataset}] prebuilt {stage} '{folder}' not found "
+                    f"on HuggingFace → keeping computed"
+                )
 
     # ── Phase 1: Corpus ───────────────────────────────────────────────────
 
